@@ -8,7 +8,6 @@ real_q: .asciiz "\nNumber format 0.0000\nEnter the real part of constatnt\n0."
 imaginary_q: .asciiz "\nEnter the imaginary part of constatnt\n0."
 size_q: .asciiz "Enter the size of image in pixels\n"
 msg_1: .asciiz "Generated BMP header and opening file...\n"
-comm_1: .asciiz "Size must be multiplication of 4 assumming:"
 msg_2: .asciiz "Done\n"
 .align 2
 header_bmp: .space 54
@@ -122,7 +121,7 @@ bmp_header_gen:	#unused - for cleaner code
 	sh $zero, ($t1)
 	addiu $t1, $t1, 2
 	
-	move $fp, $t9
+	move $fp, $t9 #inf for padding - zero filling
 	
 get_data: #unused - for cleaner code
 	li $v0, 4           
@@ -150,9 +149,9 @@ get_data: #unused - for cleaner code
 	subi $t1, $t1, 1 #correction for first step
 	#easier than making redundant code for initialisation proceed-julia 
 	la $t3, image #image buffer
-	li $s1, 5 #color const-R
-	li $s2, 1 #color const-G
-	li $s3, 3 #color const-B
+	li $s1, 3 #color const-B
+	li $s2, 7 #color const-G
+	li $s3, 5 #color const-R
 	
 create: #unused - for cleaner code
 	li $v0, 4           
@@ -174,13 +173,8 @@ create: #unused - for cleaner code
 	li $t9, 0	
 	li $s4, BUFF
 	subiu $s4, $s4, 3 # make place for possible zeros
-proceed:
-	
-step_x:
-	addi $t1, $t1, 2
-	bge $t1, $ra, step_y
-	j prepare	
-step_y:
+	j proceed
+step_y: #less frequent step so jump inside
 	move $s5, $fp
 fill_space_zero:
 	beqz $s5, filled
@@ -194,12 +188,16 @@ filled:
 	mul $t1, $ra, -1
 	addi $t2, $t2, 2
 	bge $t2, $ra, save
-	
-prepare: #unused - for cleaner code
+	j prepare
+proceed:
 	li $t0, 0
 	bge $t9, $s4, save
 	addiu $t9, $t9, 3
-	
+step_x: #more frequent step so jump onlu at the end of the line
+	addi $t1, $t1, 2
+	bge $t1, $ra, step_y
+
+prepare: #unused - for cleaner code
 	mul $t5, $s0, $t1
 	mul $t6, $s0, $t2
 julia:
@@ -217,7 +215,7 @@ julia:
 	mflo $t8
 	div $t8, $t8, 10000
 	#xy
-	add $t8, $t8, $t8 ###SHIFT
+	add $t8, $t8, $t8
 	#2xy
 	add $t5, $t7, $s6
 	#new Re
@@ -244,7 +242,6 @@ save_j:	#nesscesary see lines 254-259
 	#red
 	mult $t0, $s1
 	mflo $t4
-	li $t4, 255
 	sb $t4, ($t3)
 	addiu $t3, $t3, 1
 	#green
@@ -259,7 +256,6 @@ save_j:	#nesscesary see lines 254-259
 	addiu $t3, $t3, 1	
 	j proceed
 save:	
-	
 	la $a1, image
 	move $a2, $t9
 	li $v0, 15
